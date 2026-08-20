@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice Generator Pro</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <!-- My Manual adding -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; }
+            .print-shadow { box-shadow: none !important; border: none !important; }
+            input, textarea { border: none !important; background: transparent !important; resize: none !important; padding: 0 !important; box-shadow: none !important; }
+            textarea { height: auto !important; }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-50 no-print">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i data-lucide="file-text" class="w-6 h-6 text-emerald-400"></i>
+                <span class="font-bold text-lg tracking-wide">InvoiceGen <span class="text-xs bg-emerald-500 text-slate-900 px-2 py-0.5 rounded font-semibold ml-1">PRO</span></span>
+            </div>
+            <div class="flex items-center space-x-3">
+                <button onclick="switchTab('generator')" id="nav-generator" class="px-3 py-1.5 text-sm font-medium rounded bg-slate-800 text-emerald-400 border border-slate-700 transition">Create Invoice</button>
+                <button onclick="switchTab('history')" id="nav-history" class="px-3 py-1.5 text-sm font-medium rounded hover:bg-slate-800 text-slate-300 transition flex items-center space-x-1">
+                    <i data-lucide="history" class="w-4 h-4"></i>
+                    <span>Saved Invoices</span>
+                </button>
+                <button onclick="switchTab('profiles')" id="nav-profiles" class="px-3 py-1.5 text-sm font-medium rounded hover:bg-slate-800 text-slate-300 transition flex items-center space-x-1">
+                    <i data-lucide="building-2" class="w-4 h-4"></i>
+                    <span>Company Profiles</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-5xl mx-auto px-4 py-6">
+
+        <!-- TAB 1: GENERATOR -->
+        <div id="tab-generator" class="space-y-6">
+            
+            <!-- Action Toolbar -->
+            <div class="flex flex-wrap justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-slate-200 no-print gap-3">
+                <div class="flex items-center space-x-2">
+                    <label class="text-sm font-medium text-slate-600">Load Saved Profile:</label>
+                    <select id="profile-selector" onchange="loadSelectedProfile(this.value)" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <option value="">-- Select Company Profile --</option>
+                    </select>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="saveInvoiceToDB()" class="flex items-center space-x-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium shadow transition">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                        <span>Save to DB</span>
+                    </button>
+                    <button onclick="handleDownloadPDF()" class="flex items-center space-x-1 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-sm font-medium shadow transition">
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                        <span>Download PDF / Print</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Invoice Document Paper -->
+            <div id="invoice-paper" class="bg-white rounded-xl shadow-lg border border-slate-200 p-8 md:p-12 print-shadow">
+                
+                <!-- Header: Logo & Title -->
+                <div class="flex justify-between items-start border-b border-slate-100 pb-8">
+                    <div class="space-y-3">
+                        <div id="logo-container-box" class="relative group w-40 h-24 border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center bg-slate-50 overflow-hidden cursor-pointer hover:border-emerald-500 transition">
+                            <input type="file" id="logo-input" accept="image/*" onchange="handleLogoUpload(event)" class="absolute inset-0 opacity-0 cursor-pointer z-10 no-print">
+                            <div id="logo-placeholder" class="text-center p-2">
+                                <i data-lucide="image-plus" class="w-8 h-8 text-slate-400 mx-auto mb-1"></i>
+                                <span class="text-xs text-slate-500 font-medium">Add Your Logo</span>
+                            </div>
+                            <img id="logo-preview" class="absolute inset-0 w-full h-full object-contain hidden" alt="Company Logo">
+                        </div>
+                        <div class="w-72">
+                            <textarea id="inv-from" placeholder="Who is this from? (Company Name, Address, Email)" rows="3" class="w-full text-sm p-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500 bg-slate-50/50 resize-none"></textarea>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <h1 class="text-4xl font-light tracking-wider text-slate-900 uppercase">Invoice</h1>
+                        <div class="mt-2 flex items-center justify-end space-x-2">
+                            <span class="text-sm font-medium text-slate-400">#</span>
+                            <input type="text" id="inv-number" value="0001" class="w-28 text-right text-sm font-semibold p-1 border border-slate-200 rounded focus:outline-none focus:border-emerald-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Billing & Dates Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 py-6 border-b border-slate-100">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Bill To:</label>
+                            <textarea id="inv-bill-to" placeholder="Client Name, Company, Address" rows="3" class="w-full text-sm p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500 bg-slate-50/50 resize-none"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Ship To (Optional):</label>
+                            <textarea id="inv-ship-to" placeholder="Shipping Address" rows="2" class="w-full text-sm p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500 bg-slate-50/50 resize-none"></textarea>
+                        </div>
+                    </div>
+                    <div class="space-y-3 text-sm">
+                        <div class="flex justify-between items-center">
+                            <span class="font-medium text-slate-500">Date:</span>
+                            <input type="date" id="inv-date" class="border border-slate-200 rounded px-2.5 py-1 text-right focus:outline-none focus:border-emerald-500">
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="font-medium text-slate-500">Payment Terms:</span>
+                            <input type="text" id="inv-terms-days" placeholder="Net 30" class="border border-slate-200 rounded px-2.5 py-1 text-right focus:outline-none focus:border-emerald-500">
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="font-medium text-slate-500">Due Date:</span>
+                            <input type="date" id="inv-due-date" class="border border-slate-200 rounded px-2.5 py-1 text-right focus:outline-none focus:border-emerald-500">
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="font-medium text-slate-500">PO Number:</span>
+                            <input type="text" id="inv-po" placeholder="PO-1092" class="border border-slate-200 rounded px-2.5 py-1 text-right focus:outline-none focus:border-emerald-500">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Line Items Table -->
+                <div class="py-6 overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-900 text-white text-xs uppercase tracking-wider rounded-lg">
+                                <th class="p-3 rounded-l-lg">Item / Description</th>
+                                <th class="p-3 w-24 text-center">Quantity</th>
+                                <th class="p-3 w-32 text-right">Rate</th>
+                                <th class="p-3 w-32 text-right">Amount</th>
+                                <th class="p-3 w-12 rounded-r-lg no-print"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="line-items-container" class="divide-y divide-slate-100 text-sm">
+                            <!-- Injected via JS -->
+                        </tbody>
+                    </table>
+                    <div class="mt-4 no-print">
+                        <button onclick="addLineItem()" class="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition">
+                            <i data-lucide="plus" class="w-4 h-4"></i>
+                            <span>Add Line Item</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Totals & Notes Section -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 border-t border-slate-100">
+                    <div class="space-y-4 text-sm">
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">Notes:</label>
+                            <textarea id="inv-notes" placeholder="Notes - any relevant information not already covered" rows="2" class="w-full p-2.5 border border-slate-200 rounded-lg bg-slate-50/50 focus:outline-none focus:border-emerald-500 resize-none"></textarea>
+                        </div>
+                        <div>
+                            <label class="block font-semibold text-slate-600 mb-1">Terms & Conditions:</label>
+                            <textarea id="inv-conditions" placeholder="Late fees, payment methods, delivery schedule" rows="2" class="w-full p-2.5 border border-slate-200 rounded-lg bg-slate-50/50 focus:outline-none focus:border-emerald-500 resize-none"></textarea>
+                        </div>
+                    </div>
+                    <div class="space-y-3 text-sm">
+                        <div class="flex justify-between py-1">
+                            <span class="font-medium text-slate-500">Subtotal:</span>
+                            <span id="summary-subtotal" class="font-semibold text-slate-800">$0.00</span>
+                        </div>
+                        <div class="flex justify-between items-center py-1">
+                            <div class="flex items-center space-x-2">
+                                <span class="font-medium text-slate-500">Tax:</span>
+                                <input type="number" id="inv-tax-rate" value="0" oninput="calculateTotals()" class="w-16 p-1 border border-slate-200 rounded text-center focus:outline-none focus:border-emerald-500" min="0" max="100">
+                                <span class="text-slate-400">%</span>
+                            </div>
+                            <span id="summary-tax" class="font-semibold text-slate-800">$0.00</span>
+                        </div>
+                        <div class="flex justify-between items-center py-1">
+                            <span class="font-medium text-slate-500">Discount:</span>
+                            <div class="flex items-center space-x-1">
+                                <span class="text-slate-400">$</span>
+                                <input type="number" id="inv-discount" value="0" oninput="calculateTotals()" class="w-24 p-1 border border-slate-200 rounded text-right focus:outline-none focus:border-emerald-500" min="0">
+                            </div>
+                        </div>
+                        <div class="flex justify-between py-2 border-t border-slate-200 text-base">
+                            <span class="font-bold text-slate-900">Total:</span>
+                            <span id="summary-total" class="font-bold text-slate-900">$0.00</span>
+                        </div>
+                        <div class="flex justify-between items-center py-1">
+                            <span class="font-medium text-slate-500">Amount Paid:</span>
+                            <div class="flex items-center space-x-1">
+                                <span class="text-slate-400">$</span>
+                                <input type="number" id="inv-paid" value="0" oninput="calculateTotals()" class="w-24 p-1 border border-slate-200 rounded text-right focus:outline-none focus:border-emerald-500" min="0">
+                            </div>
+                        </div>
+                        <div class="flex justify-between py-2 border-t-2 border-slate-900 text-lg bg-emerald-50 px-3 rounded-lg">
+                            <span class="font-bold text-emerald-900">Balance Due:</span>
+                            <span id="summary-balance" class="font-extrabold text-emerald-900">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- TAB 2: SAVED INVOICES HISTORY -->
+        <div id="tab-history" class="hidden space-y-6">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                <h2 class="text-xl font-bold text-slate-900 mb-4 flex items-center space-x-2">
+                    <i data-lucide="history" class="w-5 h-5 text-emerald-600"></i>
+                    <span>Saved Invoices Database</span>
+                </h2>
+                <div id="invoices-list" class="space-y-3">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: COMPANY PROFILES -->
+        <div id="tab-profiles" class="hidden space-y-6">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                <h2 class="text-xl font-bold text-slate-900 mb-4 flex items-center space-x-2">
+                    <i data-lucide="building-2" class="w-5 h-5 text-emerald-600"></i>
+                    <span>Company Profiles Manager</span>
+                </h2>
+                <p class="text-sm text-slate-500 mb-6">Save your business details here so you can load them instantly when drafting new invoices.</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-4 border border-slate-200 p-4 rounded-xl bg-slate-50">
+                        <h3 class="font-semibold text-slate-800 text-sm">Add / Update Profile</h3>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Profile Name (e.g., My Tech Startup):</label>
+                            <input type="text" id="prof-name" class="w-full text-sm p-2 border border-slate-300 rounded-lg bg-white focus:outline-none focus:border-emerald-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Company Details (Name, Address, Email, Phone):</label>
+                            <textarea id="prof-details" rows="4" class="w-full text-sm p-2 border border-slate-300 rounded-lg bg-white focus:outline-none focus:border-emerald-500 resize-none"></textarea>
+                        </div>
+                        <button onclick="saveCompanyProfile()" class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium shadow transition">
+                            Save Profile to DB
+                        </button>
+                    </div>
+
+                    <div class="space-y-3">
+                        <h3 class="font-semibold text-slate-800 text-sm">Saved Profiles</h3>
+                        <div id="profiles-list" class="space-y-2 max-h-96 overflow-y-auto">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Notification Modal / Toast -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl transform translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-center space-x-2">
+        <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400"></i>
+        <span id="toast-msg" class="text-sm font-medium">Saved successfully!</span>
+    </div>
+
+    <!-- Firebase & App Script -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Setup
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'invoice-generator-app';
+
+        let currentUser = null;
+        let lineItems = [];
+        let logoBase64 = "";
+
+        // Initialize Authentication
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                console.error("Auth error:", err);
+            }
+        };
+        initAuth();
+
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            if (user) {
+                fetchProfiles();
+                fetchInvoices();
+            }
+        });
+
+        // Global functions exposed to window
+        window.switchTab = function(tabId) {
+            ['generator', 'history', 'profiles'].forEach(t => {
+                document.getElementById(`tab-${t}`).classList.add('hidden');
+                document.getElementById(`nav-${t}`)?.classList.remove('bg-slate-800', 'text-emerald-400', 'border', 'border-slate-700');
+                document.getElementById(`nav-${t}`)?.classList.add('text-slate-300', 'hover:bg-slate-800');
+            });
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            const activeNav = document.getElementById(`nav-${tabId}`);
+            if(activeNav) {
+                activeNav.classList.remove('text-slate-300', 'hover:bg-slate-800');
+                activeNav.classList.add('bg-slate-800', 'text-emerald-400', 'border', 'border-slate-700');
+            }
+            lucide.createIcons();
+        }
+
+        window.showToast = function(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        // Line Items Logic
+        window.addLineItem = function(desc = '', qty = 1, rate = 0) {
+            lineItems.push({ id: Date.now() + Math.random(), desc, qty, rate });
+            renderLineItems();
+        }
+
+        window.removeLineItem = function(id) {
+            lineItems = lineItems.filter(item => item.id !== id);
+            if(lineItems.length === 0) addLineItem();
+            renderLineItems();
+        }
+
+        window.renderLineItems = function() {
+            const container = document.getElementById('line-items-container');
+            container.innerHTML = '';
+            lineItems.forEach((item) => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-slate-50 hover:bg-slate-50/50';
+                tr.innerHTML = `
+                    <td class="p-2.5">
+                        <input type="text" value="${item.desc}" placeholder="Description of item/service..." oninput="updateItem(${item.id}, 'desc', this.value)" class="w-full p-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:border-emerald-500">
+                    </td>
+                    <td class="p-2.5 w-24">
+                        <input type="number" value="${item.qty}" min="1" oninput="updateItem(${item.id}, 'qty', this.value)" class="w-full p-2 border border-slate-200 rounded-lg text-sm text-center bg-white focus:outline-none focus:border-emerald-500">
+                    </td>
+                    <td class="p-2.5 w-32">
+                        <input type="number" value="${item.rate}" min="0" step="0.01" oninput="updateItem(${item.id}, 'rate', this.value)" class="w-full p-2 border border-slate-200 rounded-lg text-sm text-right bg-white focus:outline-none focus:border-emerald-500">
+                    </td>
+                    <td class="p-2.5 w-32 text-right font-medium text-slate-700" id="item-amt-${item.id}">
+                        $${(item.qty * item.rate).toFixed(2)}
+                    </td>
+                    <td class="p-2.5 w-12 text-center no-print">
+                        <button onclick="removeLineItem(${item.id})" class="text-slate-400 hover:text-rose-600 transition">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </td>
+                `;
+                container.appendChild(tr);
+            });
+            lucide.createIcons();
+            calculateTotals();
+        }
+
+        window.updateItem = function(id, field, value) {
+            const item = lineItems.find(i => i.id === id);
+            if(item) {
+                item[field] = field === 'desc' ? value : parseFloat(value) || 0;
+                document.getElementById(`item-amt-${id}`).innerText = `$${(item.qty * item.rate).toFixed(2)}`;
+                calculateTotals();
+            }
+        }
+
+        window.calculateTotals = function() {
+            let subtotal = lineItems.reduce((acc, item) => acc + (item.qty * item.rate), 0);
+            let taxRate = parseFloat(document.getElementById('inv-tax-rate').value) || 0;
+            let discount = parseFloat(document.getElementById('inv-discount').value) || 0;
+            let paid = parseFloat(document.getElementById('inv-paid').value) || 0;
+
+            let tax = (subtotal * taxRate) / 100;
+            let total = subtotal + tax - discount;
+            let balance = total - paid;
+
+            document.getElementById('summary-subtotal').innerText = `$${subtotal.toFixed(2)}`;
+            document.getElementById('summary-tax').innerText = `$${tax.toFixed(2)}`;
+            document.getElementById('summary-total').innerText = `$${total.toFixed(2)}`;
+            document.getElementById('summary-balance').innerText = `$${balance.toFixed(2)}`;
+        }
+
+        // Logo Upload Handler
+        window.handleLogoUpload = function(event) {
+            const file = event.target.files[0];
+            if(file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    logoBase64 = e.target.result;
+                    const preview = document.getElementById('logo-preview');
+                    preview.src = logoBase64;
+                    preview.classList.remove('hidden');
+                    document.getElementById('logo-placeholder').classList.add('hidden');
+                    document.getElementById('logo-container-box').classList.remove('border-dashed');
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Download / Print Trigger
+        window.handleDownloadPDF = function() {
+            window.print();
+        }
+
+        // Database Profiles Management
+        window.saveCompanyProfile = async function() {
+            if(!currentUser) return showToast("Authentication required!");
+            const name = document.getElementById('prof-name').value.trim();
+            const details = document.getElementById('prof-details').value.trim();
+            if(!name || !details) return showToast("Please enter profile name and details");
+
+            try {
+                await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'profiles'), {
+                    name, details, createdAt: new Date().toISOString()
+                });
+                document.getElementById('prof-name').value = '';
+                document.getElementById('prof-details').value = '';
+                showToast("Company profile saved!");
+                fetchProfiles();
+            } catch(err) {
+                console.error(err);
+                showToast("Error saving profile");
+            }
+        }
+
+        async function fetchProfiles() {
+            if(!currentUser) return;
+            try {
+                const querySnapshot = await getDocs(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'profiles'));
+                const profilesListEl = document.getElementById('profiles-list');
+                const selectorEl = document.getElementById('profile-selector');
+                
+                profilesListEl.innerHTML = '';
+                selectorEl.innerHTML = '<option value="">-- Select Company Profile --</option>';
+
+                querySnapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    
+                    // Add to selector dropdown
+                    const opt = document.createElement('option');
+                    opt.value = data.details;
+                    opt.textContent = data.name;
+                    selectorEl.appendChild(opt);
+
+                    // Add to profile manager list
+                    const card = document.createElement('div');
+                    card.className = 'p-3 border border-slate-200 rounded-lg flex justify-between items-start bg-white';
+                    card.innerHTML = `
+                        <div>
+                            <h4 class="font-semibold text-sm text-slate-800">${data.name}</h4>
+                            <p class="text-xs text-slate-500 whitespace-pre-line mt-1">${data.details}</p>
+                        </div>
+                        <button onclick="deleteProfile('${docSnap.id}')" class="text-slate-400 hover:text-rose-600">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    `;
+                    profilesListEl.appendChild(card);
+                });
+                lucide.createIcons();
+            } catch(err) {
+                console.error(err);
+            }
+        }
+
+        window.loadSelectedProfile = function(details) {
+            if(details) {
+                document.getElementById('inv-from').value = details;
+            }
+        }
+
+        window.deleteProfile = async function(id) {
+            if(!currentUser) return;
+            try {
+                await deleteDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'profiles', id));
+                showToast("Profile deleted");
+                fetchProfiles();
+            } catch(err) {
+                console.error(err);
+            }
+        }
+
+        // Save Invoice to DB
+        window.saveInvoiceToDB = async function() {
+            if(!currentUser) return showToast("Authentication required!");
+            const invoiceData = {
+                number: document.getElementById('inv-number').value,
+                from: document.getElementById('inv-from').value,
+                billTo: document.getElementById('inv-bill-to').value,
+                shipTo: document.getElementById('inv-ship-to').value,
+                date: document.getElementById('inv-date').value,
+                dueDate: document.getElementById('inv-due-date').value,
+                po: document.getElementById('inv-po').value,
+                lineItems,
+                notes: document.getElementById('inv-notes').value,
+                conditions: document.getElementById('inv-conditions').value,
+                total: document.getElementById('summary-total').innerText,
+                createdAt: new Date().toISOString()
+            };
+
+            try {
+                await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'invoices'), invoiceData);
+                showToast("Invoice saved successfully!");
+                fetchInvoices();
+            } catch(err) {
+                console.error(err);
+                showToast("Failed to save invoice");
+            }
+        }
+
+        async function fetchInvoices() {
+            if(!currentUser) return;
+            try {
+                const querySnapshot = await getDocs(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'invoices'));
+                const listEl = document.getElementById('invoices-list');
+                listEl.innerHTML = '';
+
+                if(querySnapshot.empty) {
+                    listEl.innerHTML = '<p class="text-sm text-slate-400">No saved invoices found.</p>';
+                    return;
+                }
+
+                querySnapshot.forEach((docSnap) => {
+                    const inv = docSnap.data();
+                    const card = document.createElement('div');
+                    card.className = 'p-4 border border-slate-200 rounded-xl flex justify-between items-center bg-slate-50 hover:bg-white transition shadow-sm';
+                    card.innerHTML = `
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <span class="font-bold text-slate-900">Invoice #${inv.number}</span>
+                                <span class="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-medium">${inv.total}</span>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-1">Date: ${inv.date || 'N/A'} | Client: ${inv.billTo ? inv.billTo.split('\n')[0] : 'N/A'}</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick='loadInvoiceIntoEditor(${JSON.stringify(inv)})' class="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-medium hover:bg-slate-800">
+                                Load
+                            </button>
+                            <button onclick="deleteInvoice('${docSnap.id}')" class="p-1.5 text-slate-400 hover:text-rose-600">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    `;
+                    listEl.appendChild(card);
+                });
+                lucide.createIcons();
+            } catch(err) {
+                console.error(err);
+            }
+        }
+
+        window.loadInvoiceIntoEditor = function(inv) {
+            document.getElementById('inv-number').value = inv.number || '';
+            document.getElementById('inv-from').value = inv.from || '';
+            document.getElementById('inv-bill-to').value = inv.billTo || '';
+            document.getElementById('inv-ship-to').value = inv.shipTo || '';
+            document.getElementById('inv-date').value = inv.date || '';
+            document.getElementById('inv-due-date').value = inv.dueDate || '';
+            document.getElementById('inv-po').value = inv.po || '';
+            document.getElementById('inv-notes').value = inv.notes || '';
+            document.getElementById('inv-conditions').value = inv.conditions || '';
+            lineItems = inv.lineItems || [];
+            renderLineItems();
+            switchTab('generator');
+            showToast("Invoice loaded into editor!");
+        }
+
+        window.deleteInvoice = async function(id) {
+            if(!currentUser) return;
+            try {
+                await deleteDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'invoices', id));
+                showToast("Invoice deleted");
+                fetchInvoices();
+            } catch(err) {
+                console.error(err);
+            }
+        }
+
+        // Set default dates on load
+        window.onload = function() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('inv-date').value = today;
+            
+            const dueDate = new Date();
+            dueDate.setDate(dueDate.getDate() + 14);
+            document.getElementById('inv-due-date').value = dueDate.toISOString().split('T')[0];
+
+            // Add initial empty line item
+            addLineItem("Consulting & Development Services", 1, 150.00);
+            lucide.createIcons();
+        }
+    </script>
+</body>
+</html>
+
