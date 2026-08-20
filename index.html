@@ -79,6 +79,75 @@
         .pdf-mode .no-print {
             display: none !important;
         }
+        /* =========================
+   PDF SAFE LAYOUT
+========================= */
+
+.pdf-render-root {
+    position: fixed !important;
+    left: -100000px !important;
+    top: 0 !important;
+    width: 794px !important;
+    min-width: 794px !important;
+    max-width: 794px !important;
+    background: #fff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+}
+
+.pdf-render-root * {
+    box-sizing: border-box !important;
+}
+
+.pdf-render-root textarea,
+.pdf-render-root input {
+    border: none !important;
+    outline: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    resize: none !important;
+    overflow: visible !important;
+}
+
+.pdf-render-root textarea {
+    white-space: pre-wrap !important;
+}
+
+.pdf-render-root table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed !important;
+}
+
+.pdf-render-root th,
+.pdf-render-root td {
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+    vertical-align: top !important;
+}
+
+.pdf-render-root .no-print {
+    display: none !important;
+}
+
+.pdf-render-root .mobile-scroll {
+    overflow: visible !important;
+}
+
+.pdf-render-root #invoice-paper {
+    width: 794px !important;
+    min-width: 794px !important;
+    max-width: 794px !important;
+    padding: 42px !important;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
     </style>
 </head>
 
@@ -339,7 +408,7 @@
 
             <div class="mobile-scroll">
 
-                <table class="w-full text-left border-collapse min-w-[650px]">
+                <table class="w-full text-left border-collapse">
 
                     <thead>
                         <tr class="bg-slate-900 text-white text-xs uppercase tracking-wider">
@@ -1789,397 +1858,298 @@ function(id) {
    PDF DOWNLOAD
 ========================================================= */
 
-window.handleDownloadPDF =
-async function() {
+window.handleDownloadPDF = async function () {
+    const original = document.getElementById("invoice-paper");
+    const button = document.getElementById("download-pdf-btn");
 
-    const invoice =
-        document.getElementById(
-            "invoice-paper"
-        );
-
-
-    const button =
-        document.getElementById(
-            "download-pdf-btn"
-        );
-
-
-    if (!invoice) {
-
-        showToast(
-            "Invoice not found."
-        );
-
+    if (!original) {
+        showToast("Invoice not found.");
         return;
     }
 
-
-    if (
-        typeof html2canvas ===
-        "undefined"
-    ) {
-
-        showToast(
-            "PDF library failed to load."
-        );
-
+    if (typeof html2canvas === "undefined") {
+        showToast("PDF library failed to load.");
         return;
     }
 
-
-    if (
-        !window.jspdf ||
-        !window.jspdf.jsPDF
-    ) {
-
-        showToast(
-            "PDF generator failed to load."
-        );
-
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+        showToast("PDF generator failed to load.");
         return;
     }
-
 
     try {
-
         button.disabled = true;
+        button.classList.add("opacity-60", "cursor-not-allowed");
 
-        button.classList.add(
-            "opacity-60",
-            "cursor-not-allowed"
-        );
-
-
-        const buttonText =
-            button.querySelector(
-                "span"
-            );
-
-
+        const buttonText = button.querySelector("span");
         if (buttonText) {
-            buttonText.textContent =
-                "Generating PDF...";
+            buttonText.textContent = "Generating PDF...";
         }
 
+        /*
+         * IMPORTANT:
+         * Instead of rendering the responsive invoice directly,
+         * create a fixed-width A4-safe clone.
+         */
 
-        /* Hide no-print elements */
-        const hiddenElements = [];
+        const wrapper = document.createElement("div");
+        wrapper.className = "pdf-render-root";
 
+        const clone = original.cloneNode(true);
 
-        invoice
-            .querySelectorAll(
-                ".no-print"
-            )
-            .forEach(element => {
+        wrapper.appendChild(clone);
+        document.body.appendChild(wrapper);
 
-                hiddenElements.push({
-                    element,
-                    display:
-                        element.style.display
-                });
+        /*
+         * Remove all editing-only controls.
+         */
+        clone.querySelectorAll(".no-print").forEach(el => {
+            el.remove();
+        });
 
-                element.style.display =
-                    "none";
-            });
+        /*
+         * Convert inputs/textareas into stable PDF text.
+         * This prevents browser input rendering issues.
+         */
+        clone.querySelectorAll("input, textarea").forEach(input => {
+            const value = input.value || input.getAttribute("value") || "";
 
+            const div = document.createElement("div");
 
-        /* PDF class */
-        invoice.classList.add(
-            "pdf-mode"
-        );
+            div.textContent = value;
 
+            div.style.fontFamily = "Inter, Arial, sans-serif";
+            div.style.fontSize = getComputedStyle(input).fontSize;
+            div.style.fontWeight = getComputedStyle(input).fontWeight;
+            div.style.color = getComputedStyle(input).color;
+            div.style.lineHeight = getComputedStyle(input).lineHeight;
+            div.style.textAlign = getComputedStyle(input).textAlign;
+            div.style.whiteSpace = "pre-wrap";
+            div.style.wordBreak = "break-word";
+            div.style.overflowWrap = "anywhere";
+            div.style.minHeight = getComputedStyle(input).height;
+            div.style.width = "100%";
+            div.style.padding = "0";
 
-        /* Wait for fonts */
-        if (
-            document.fonts &&
-            document.fonts.ready
-        ) {
+            input.replaceWith(div);
+        });
 
-            await document.fonts.ready;
-        }
-
-
-        /* Wait for images */
-        const images =
-            invoice.querySelectorAll(
-                "img"
-            );
-
+        /*
+         * Make sure logo is loaded before rendering.
+         */
+        const images = Array.from(clone.querySelectorAll("img"));
 
         await Promise.all(
-
-            Array.from(
-                images
-            ).map(img => {
-
-                if (
-                    img.complete
-                ) {
+            images.map(img => {
+                if (img.complete) {
                     return Promise.resolve();
                 }
 
-
-                return new Promise(
-                    resolve => {
-
-                        img.onload =
-                            resolve;
-
-                        img.onerror =
-                            resolve;
-                    }
-                );
-
+                return new Promise(resolve => {
+                    img.onload = resolve;
+                    img.onerror = resolve;
+                });
             })
         );
 
-
-        /* Allow mobile layout to settle */
-        await new Promise(
-            resolve =>
-                setTimeout(
-                    resolve,
-                    300
-                )
-        );
-
-
-        const canvas =
-            await html2canvas(
-                invoice,
-                {
-
-                    scale: 2,
-
-                    useCORS: true,
-
-                    allowTaint: false,
-
-                    backgroundColor:
-                        "#ffffff",
-
-                    logging: false,
-
-                    imageTimeout:
-                        15000,
-
-                    scrollX: 0,
-
-                    scrollY: 0,
-
-                    windowWidth:
-                        invoice.scrollWidth
-                }
-            );
-
-
-        const {
-            jsPDF
-        } =
-            window.jspdf;
-
-
-        const pdf =
-            new jsPDF({
-
-                orientation:
-                    "portrait",
-
-                unit:
-                    "mm",
-
-                format:
-                    "a4",
-
-                compress:
-                    true
-            });
-
-
-        const pageWidth =
-            210;
-
-
-        const pageHeight =
-            297;
-
-
-        const margin =
-            8;
-
-
-        const usableWidth =
-            pageWidth -
-            margin * 2;
-
-
-        const usableHeight =
-            pageHeight -
-            margin * 2;
-
-
-        const imageHeight =
-            (
-                canvas.height *
-                usableWidth
-            ) /
-            canvas.width;
-
-
-        const imageData =
-            canvas.toDataURL(
-                "image/jpeg",
-                0.95
-            );
-
-
-        let heightLeft =
-            imageHeight;
-
-
-        let position =
-            margin;
-
-
-        /* First page */
-        pdf.addImage(
-            imageData,
-            "JPEG",
-            margin,
-            position,
-            usableWidth,
-            imageHeight
-        );
-
-
-        heightLeft -=
-            usableHeight;
-
-
-        /* Extra pages */
-        while (
-            heightLeft > 0
-        ) {
-
-            position =
-                margin -
-                (
-                    imageHeight -
-                    heightLeft
-                );
-
-
-            pdf.addPage();
-
-
-            pdf.addImage(
-                imageData,
-                "JPEG",
-                margin,
-                position,
-                usableWidth,
-                imageHeight
-            );
-
-
-            heightLeft -=
-                usableHeight;
+        /*
+         * Wait for fonts/layout.
+         */
+        if (document.fonts && document.fonts.ready) {
+            await document.fonts.ready;
         }
 
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-        const invoiceNumber =
-            document.getElementById(
-                "inv-number"
-            ).value ||
-            "0001";
+        /*
+         * Render fixed 794px invoice.
+         */
+        const canvas = await html2canvas(wrapper, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: false,
+            backgroundColor: "#ffffff",
+            logging: false,
+            imageTimeout: 15000,
+            width: 794,
+            windowWidth: 794,
+            scrollX: 0,
+            scrollY: 0
+        });
 
+        /*
+         * A4 PDF
+         */
+        const { jsPDF } = window.jspdf;
 
-        const safeNumber =
-            invoiceNumber
-                .replace(
-                    /[^a-zA-Z0-9-_]/g,
-                    "-"
+        const pdf = new jsPDF({
+            orientation: "portrait",
+            unit: "mm",
+            format: "a4",
+            compress: true
+        });
+
+        const pageWidth = 210;
+        const pageHeight = 297;
+
+        const margin = 8;
+
+        const usableWidth = pageWidth - margin * 2;
+        const usableHeight = pageHeight - margin * 2;
+
+        /*
+         * Calculate PDF image height.
+         */
+        const pdfImageHeight =
+            (canvas.height * usableWidth) / canvas.width;
+
+        /*
+         * Height of one PDF page in source canvas pixels.
+         */
+        const pageCanvasHeight =
+            Math.floor(
+                (usableHeight / pdfImageHeight) *
+                canvas.height
+            );
+
+        let sourceY = 0;
+        let pageNumber = 0;
+
+        while (sourceY < canvas.height) {
+            pageNumber++;
+
+            const remainingHeight =
+                canvas.height - sourceY;
+
+            const currentHeight =
+                Math.min(
+                    pageCanvasHeight,
+                    remainingHeight
                 );
 
+            /*
+             * Create a separate canvas for this page.
+             */
+            const pageCanvas =
+                document.createElement("canvas");
 
-        pdf.save(
-            `Invoice-${safeNumber}.pdf`
-        );
+            pageCanvas.width = canvas.width;
+            pageCanvas.height = currentHeight;
 
+            const ctx =
+                pageCanvas.getContext("2d");
 
-        showToast(
-            "PDF downloaded successfully!"
-        );
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(
+                0,
+                0,
+                pageCanvas.width,
+                pageCanvas.height
+            );
 
+            ctx.drawImage(
+                canvas,
+                0,
+                sourceY,
+                canvas.width,
+                currentHeight,
+                0,
+                0,
+                canvas.width,
+                currentHeight
+            );
 
-        /* Restore hidden elements */
-        hiddenElements.forEach(
-            item => {
+            const pageImage =
+                pageCanvas.toDataURL(
+                    "image/jpeg",
+                    0.95
+                );
 
-                item.element.style.display =
-                    item.display;
+            const currentPdfHeight =
+                (currentHeight * usableWidth) /
+                canvas.width;
+
+            if (pageNumber > 1) {
+                pdf.addPage();
             }
-        );
 
+            pdf.addImage(
+                pageImage,
+                "JPEG",
+                margin,
+                margin,
+                usableWidth,
+                currentPdfHeight,
+                undefined,
+                "FAST"
+            );
 
-        invoice.classList.remove(
-            "pdf-mode"
-        );
+            sourceY += currentHeight;
+        }
+
+        /*
+         * Safe filename.
+         */
+        const invoiceNumber =
+            document.getElementById("inv-number")?.value ||
+            "0001";
+
+        const safeNumber =
+            String(invoiceNumber)
+                .replace(/[^a-zA-Z0-9-_]/g, "-");
+
+        pdf.save(`Invoice-${safeNumber}.pdf`);
+
+        /*
+         * Cleanup.
+         */
+        wrapper.remove();
+
+        showToast("PDF downloaded successfully!");
 
     } catch (error) {
-
-        console.error(
-            "PDF Error:",
-            error
-        );
-
+        console.error("PDF Error:", error);
 
         showToast(
-            "Could not generate PDF. Try again."
+            "Could not generate PDF. Please try again."
         );
 
     } finally {
 
-        /* Safety restore */
-        invoice.classList.remove(
-            "pdf-mode"
-        );
+        /*
+         * Remove any remaining PDF clone.
+         */
+        document
+            .querySelectorAll(".pdf-render-root")
+            .forEach(el => el.remove());
 
-
-        invoice
-            .querySelectorAll(
-                ".no-print"
-            )
-            .forEach(element => {
-
-                element.style.display =
-                    "";
-            });
-
-
-        button.disabled =
-            false;
-
+        button.disabled = false;
 
         button.classList.remove(
             "opacity-60",
             "cursor-not-allowed"
         );
 
-
         const buttonText =
-            button.querySelector(
-                "span"
-            );
-
+            button.querySelector("span");
 
         if (buttonText) {
-
             buttonText.textContent =
                 "Download PDF";
         }
     }
 };
+
+
+        
+
+
+        
+
+
+
+        
+
 
 
 /* =========================================================
