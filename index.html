@@ -9,8 +9,8 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Google Fonts -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <!-- PDF Download Button-->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
@@ -414,44 +414,143 @@
         }
 
         // Download / Print Trigger
-        // Download / Print Trigger (Mobile + Desktop)
-window.handleDownloadPDF = function() {
-    const isMobile = window.innerWidth < 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    
-    if (isMobile) {
-        showToast("Generating PDF...");
-        const element = document.getElementById('invoice-paper');
-        
-        // Ensure clean background for PDF
-        element.style.background = 'white';
-        
-        const opt = {
-            margin:        [0.5, 0.5, 0.5, 0.5],
-            filename:      `Invoice-${document.getElementById('inv-number').value || 'draft'}.pdf`,
-            image:         { type: 'jpeg', quality: 0.98 },
-            html2canvas:   { 
-                scale: 2,
-                useCORS: true,
-                letterRendering: true,
-                logging: false
-            },
-            jsPDF:         { 
-                unit: 'in', 
-                format: 'a4', 
-                orientation: 'portrait' 
-            }
-        };
+        window.handleDownloadPDF = async function() {
+    const invoice = document.getElementById('invoice-paper');
+    const button = document.querySelector('button[onclick="handleDownloadPDF()"]');
 
-        html2pdf().set(opt).from(element).save().then(() => {
-            showToast("PDF downloaded successfully!");
-        }).catch((err) => {
-            console.error("PDF Error:", err);
-            showToast("Failed to generate PDF, check console.");
-        });
-    } else {
-        window.print(); // Desktop users get the print dialog
+    if (!invoice) {
+        showToast("Invoice not found!");
+        return;
     }
-}
+
+    try {
+        // Loading state
+        if (button) {
+            button.disabled = true;
+            button.classList.add('opacity-60', 'cursor-not-allowed');
+
+            const text = button.querySelector('span');
+            if (text) text.textContent = 'Generating PDF...';
+        }
+
+        // Wait for fonts
+        if (document.fonts && document.fonts.ready) {
+            await document.fonts.ready;
+        }
+
+        // Wait for images/logo
+        const images = invoice.querySelectorAll('img');
+
+        await Promise.all(
+            Array.from(images).map(img => {
+                if (img.complete) return Promise.resolve();
+
+                return new Promise(resolve => {
+                    img.onload = resolve;
+                    img.onerror = resolve;
+                });
+            })
+        );
+
+        // Small delay for mobile rendering
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        const canvas = await html2canvas(invoice, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: false,
+            backgroundColor: '#ffffff',
+            logging: false,
+            imageTimeout: 15000,
+            scrollX: 0,
+            scrollY: -window.scrollY,
+            windowWidth: invoice.scrollWidth
+        });
+
+        const { jsPDF } = window.jspdf;
+
+        const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4',
+            compress: true
+        });
+
+        const pageWidth = 210;
+        const pageHeight = 297;
+        const margin = 8;
+
+        const pdfWidth = pageWidth - (margin * 2);
+        const pdfHeight = pageHeight - (margin * 2);
+
+        const imageWidth = canvas.width;
+        const imageHeight = canvas.height;
+
+        // Calculate proportional height
+        const renderedHeight =
+            (imageHeight * pdfWidth) / imageWidth;
+
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+
+        let heightLeft = renderedHeight;
+        let position = margin;
+
+        // First page
+        pdf.addImage(
+            imgData,
+            'JPEG',
+            margin,
+            position,
+            pdfWidth,
+            renderedHeight
+        );
+
+        heightLeft -= pdfHeight;
+
+        // Additional pages
+        while (heightLeft > 0) {
+            position = margin - (renderedHeight - heightLeft);
+
+            pdf.addPage();
+
+            pdf.addImage(
+                imgData,
+                'JPEG',
+                margin,
+                position,
+                pdfWidth,
+                renderedHeight
+            );
+
+            heightLeft -= pdfHeight;
+        }
+
+        // Safe invoice filename
+        const invoiceNumber =
+            document.getElementById('inv-number')?.value || '0001';
+
+        const safeNumber = invoiceNumber
+            .replace(/[^a-zA-Z0-9-_]/g, '-');
+
+        pdf.save(`Invoice-${safeNumber}.pdf`);
+
+        showToast("PDF downloaded successfully!");
+
+    } catch (error) {
+        console.error("PDF Error:", error);
+        showToast("Failed to generate PDF. Please try again.");
+
+    } finally {
+        // Restore button
+        if (button) {
+            button.disabled = false;
+            button.classList.remove('opacity-60', 'cursor-not-allowed');
+
+            const text = button.querySelector('span');
+            if (text) text.textContent = 'Download PDF / Print';
+        }
+    }
+};
 
         // Database Profiles Management
         window.saveCompanyProfile = async function() {
