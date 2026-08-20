@@ -9,8 +9,8 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Google Fonts -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <!-- My Manual adding -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- PDF Download Button-->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
@@ -20,12 +20,6 @@
             .print-shadow { box-shadow: none !important; border: none !important; }
             input, textarea { border: none !important; background: transparent !important; resize: none !important; padding: 0 !important; box-shadow: none !important; }
             textarea { height: auto !important; }
-        }
-        #invoice-paper {
-    background: white !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
         }
     </style>
 </head>
@@ -458,6 +452,7 @@ window.handleDownloadPDF = function() {
         window.print(); // Desktop users get the print dialog
     }
 }
+
         // Database Profiles Management
         window.saveCompanyProfile = async function() {
             if(!currentUser) return showToast("Authentication required!");
