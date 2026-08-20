@@ -21,6 +21,12 @@
             input, textarea { border: none !important; background: transparent !important; resize: none !important; padding: 0 !important; box-shadow: none !important; }
             textarea { height: auto !important; }
         }
+        #invoice-paper {
+    background: white !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+        }
     </style>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800">
@@ -414,10 +420,44 @@
         }
 
         // Download / Print Trigger
-        window.handleDownloadPDF = function() {
-            window.print();
-        }
+        // Download / Print Trigger (Mobile + Desktop)
+window.handleDownloadPDF = function() {
+    const isMobile = window.innerWidth < 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+        showToast("Generating PDF...");
+        const element = document.getElementById('invoice-paper');
+        
+        // Ensure clean background for PDF
+        element.style.background = 'white';
+        
+        const opt = {
+            margin:        [0.5, 0.5, 0.5, 0.5],
+            filename:      `Invoice-${document.getElementById('inv-number').value || 'draft'}.pdf`,
+            image:         { type: 'jpeg', quality: 0.98 },
+            html2canvas:   { 
+                scale: 2,
+                useCORS: true,
+                letterRendering: true,
+                logging: false
+            },
+            jsPDF:         { 
+                unit: 'in', 
+                format: 'a4', 
+                orientation: 'portrait' 
+            }
+        };
 
+        html2pdf().set(opt).from(element).save().then(() => {
+            showToast("PDF downloaded successfully!");
+        }).catch((err) => {
+            console.error("PDF Error:", err);
+            showToast("Failed to generate PDF, check console.");
+        });
+    } else {
+        window.print(); // Desktop users get the print dialog
+    }
+}
         // Database Profiles Management
         window.saveCompanyProfile = async function() {
             if(!currentUser) return showToast("Authentication required!");
