@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Invoice Gen — Free Invoice Generator</title>
+<meta name="description" content="Create, save and download clean, professional invoices — free." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ============ TOP BAR ============ -->
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <span class="brand-mark">IG</span>
+      <span class="brand-name">Invoice <em>Gen</em></span>
+    </div>
+    <div class="topbar-right">
+      <span class="account-pill" id="accountPill">Saved on this device</span>
+      <div class="menu-wrap">
+        <button class="icon-btn" id="menuBtn" aria-haspopup="true" aria-expanded="false" aria-label="Menu">⋮</button>
+        <div class="dropdown hidden" id="dropdownMenu">
+          <button type="button" class="dropdown-item" id="menuAccountBtn">Sign up / sign in <small>(optional — to sync)</small></button>
+          <button type="button" class="dropdown-item hidden" id="menuLogoutBtn">Log out of sync</button>
+          <button type="button" class="dropdown-item" id="menuTermsBtn">Terms &amp; Privacy</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ ACCOUNT MODAL (optional sync — not required to use the app) ============ -->
+<div id="authModalOverlay" class="modal-overlay hidden">
+  <div class="modal-card auth-card">
+    <button class="modal-close" id="authModalClose" aria-label="Close">✕</button>
+    <div class="auth-stamp">IG</div>
+    <h1 id="authTitle">Sign in</h1>
+    <p class="auth-sub" id="authSub">Totally optional. Your invoices already save on this device — sign up only if you want them synced across devices.</p>
+
+    <form id="authForm" class="auth-form">
+      <label class="field">
+        <span>Email</span>
+        <input type="email" id="authEmail" required autocomplete="email" />
+      </label>
+      <label class="field">
+        <span>Password</span>
+        <input type="password" id="authPassword" required autocomplete="current-password" minlength="6" />
+      </label>
+      <p class="auth-error" id="authError"></p>
+      <button type="submit" class="btn btn-primary btn-block" id="authSubmitBtn">Sign in</button>
+    </form>
+
+    <button class="link-btn" id="authToggle">Need an account? Create one</button>
+    <button class="link-btn" id="authSkip">No thanks, keep using local storage</button>
+  </div>
+</div>
+
+<!-- ============ TERMS & PRIVACY MODAL ============ -->
+<div id="termsModalOverlay" class="modal-overlay hidden">
+  <div class="modal-card terms-card">
+    <button class="modal-close" id="termsModalClose" aria-label="Close">✕</button>
+    <h1>Terms &amp; Privacy</h1>
+    <div class="terms-body">
+      <p><strong>Where your invoices are stored, by default:</strong> this app saves everything — your business details, clients, line items, logo, and every invoice you build — in your browser's <strong>local storage</strong> on this device only. Nothing is uploaded, nothing is sent to a server, and no account is required to use the app.</p>
+      <p><strong>What that means in practice:</strong> your invoices are only available on this browser, on this device. Clearing your browser's site data, using a different browser, or switching devices means you won't see them there. We can't recover locally-stored data for you if it's cleared — there's no server-side copy to restore from.</p>
+      <p><strong>Optional account (sync):</strong> if you choose to sign up, your invoices are instead saved to your own private Firebase account so you can reach them from other devices. This is entirely opt-in — nobody is required to sign up to use Invoice Gen. If you sign up, your invoice data is transmitted to and stored by Firebase (Google Cloud) under your account, protected by access rules that restrict it to you.</p>
+      <p><strong>PDFs</strong> are generated entirely on your device — the PDF file never passes through any server either way.</p>
+      <p><strong>No ads, no tracking, no data resale.</strong> This tool doesn't sell or share your data with third parties.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ APP SHELL ============ -->
+<main id="appShell" class="app-shell">
+
+  <!-- Sidebar: saved invoices -->
+  <aside class="sidebar">
+    <button class="btn btn-primary btn-block" id="newInvoiceBtn">+ New invoice</button>
+    <h2 class="sidebar-heading">Saved invoices</h2>
+    <div id="invoiceList" class="invoice-list">
+      <p class="empty-note">No invoices yet. Build one and hit Save.</p>
+    </div>
+  </aside>
+
+  <!-- Editor + Preview -->
+  <section class="editor-wrap">
+
+    <form id="invoiceForm" class="editor">
+
+      <div class="editor-grid">
+        <div class="panel">
+          <label class="field">
+            <span>Your logo (optional)</span>
+            <input type="file" id="logoInput" accept="image/png,image/jpeg" />
+          </label>
+          <div class="field-row">
+            <label class="field">
+              <span>From (your business)</span>
+              <textarea id="fromField" rows="3" placeholder="Business name&#10;Address&#10;Email / phone"></textarea>
+            </label>
+            <label class="field">
+              <span>Bill to</span>
+              <textarea id="billToField" rows="3" placeholder="Client name&#10;Address&#10;Email"></textarea>
+            </label>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="field-row four">
+            <label class="field">
+              <span>Invoice #</span>
+              <input type="text" id="invoiceNumber" value="0001" />
+            </label>
+            <label class="field">
+              <span>Date</span>
+              <input type="date" id="invoiceDate" />
+            </label>
+            <label class="field">
+              <span>Due date</span>
+              <input type="date" id="dueDate" />
+            </label>
+            <label class="field">
+              <span>Status</span>
+              <select id="invoiceStatus">
+                <option value="DRAFT">Draft</option>
+                <option value="UNPAID">Unpaid</option>
+                <option value="PAID">Paid</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div class="panel">
+          <table class="items-table" id="itemsTable">
+            <thead>
+              <tr>
+                <th class="col-desc">Item</th>
+                <th class="col-qty">Qty</th>
+                <th class="col-rate">Rate</th>
+                <th class="col-amt">Amount</th>
+                <th class="col-del"></th>
+              </tr>
+            </thead>
+            <tbody id="itemsBody"><!-- rows injected by JS --></tbody>
+          </table>
+          <button type="button" class="link-btn" id="addItemBtn">+ Add line item</button>
+        </div>
+
+        <div class="panel field-row">
+          <label class="field">
+            <span>Notes</span>
+            <textarea id="notesField" rows="3" placeholder="Anything the client should know"></textarea>
+          </label>
+          <label class="field">
+            <span>Terms</span>
+            <textarea id="termsField" rows="3" placeholder="Payment terms, late fees, etc."></textarea>
+          </label>
+        </div>
+
+        <div class="panel totals-panel">
+          <div class="field-row four">
+            <label class="field">
+              <span>Currency</span>
+              <select id="currencySelect">
+                <option value="$">USD $</option>
+                <option value="₹">INR ₹</option>
+                <option value="€">EUR €</option>
+                <option value="£">GBP £</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Tax %</span>
+              <input type="number" id="taxPct" value="0" min="0" step="0.01" />
+            </label>
+            <label class="field">
+              <span>Discount %</span>
+              <input type="number" id="discountPct" value="0" min="0" step="0.01" />
+            </label>
+            <label class="field">
+              <span>Amount paid</span>
+              <input type="number" id="amountPaid" value="0" min="0" step="0.01" />
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="editor-actions">
+        <button type="button" class="btn btn-ghost" id="saveBtn">Save invoice</button>
+        <button type="button" class="btn btn-primary" id="downloadBtn">Download PDF</button>
+      </div>
+      <p class="save-status" id="saveStatus"></p>
+    </form>
+
+    <!-- Live preview -->
+    <div class="preview-wrap">
+      <div class="preview-sheet" id="previewSheet">
+        <!-- rendered by JS -->
+      </div>
+    </div>
+
+  </section>
+</main>
+
+<div id="toast" class="toast hidden"></div>
+
+<!-- Firebase (compat build — no bundler needed) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<!-- PDF generation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script src="firebase-config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
